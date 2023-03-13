@@ -136,7 +136,7 @@ public class OnetouchService extends BleProfileService implements OnetouchCallba
         mInfo = aInfo;
 
         final Intent broadcast = new Intent(BROADCAST_INFORMATION);
-        broadcast.putExtra(EXTRA_BATTERY_CAPACITY,aInfo.batteryCapacity);
+        broadcast.putExtra(EXTRA_BATTERY_CAPACITY, aInfo.getBatteryCapacity());
         broadcast.putExtra(EXTRA_SERIAL_NUMBER,aInfo.serialNumber);
         LocalBroadcastManager.getInstance(this).sendBroadcast(broadcast);
     }

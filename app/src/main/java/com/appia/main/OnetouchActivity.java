@@ -178,8 +178,8 @@ public class OnetouchActivity extends BleProfileServiceReadyActivity<OnetouchSer
 		runOnUiThread(() -> {
 					if(mBinder!=null) {
 						OnetouchInfo info = mBinder.getDeviceInfo();
-						Log.d(TAG,"Device information receivec: " + info.batteryCapacity + "% battery left");
-						batteryLevelView.setText(info.batteryCapacity+"%");
+						Log.d(TAG,"Device information receivec: " + info.getBatteryCapacity() + "% battery left");
+						batteryLevelView.setText(info.getBatteryCapacity() +"%");
 					}
 		});
 	}
@@ -314,20 +314,20 @@ public class OnetouchActivity extends BleProfileServiceReadyActivity<OnetouchSer
 
 			// Populate the data into the template view using the data object
 			DateFormat format = DateFormat.getDateTimeInstance(DateFormat.DEFAULT, DateFormat.SHORT, Locale.getDefault());
-			String dateString = format.format(measurement.mDate);
+			String dateString = format.format(measurement.getMDate());
 			time.setText(dateString);
 
-			if(measurement.mErrorID==0) {
-				value.setText(String.format(Locale.getDefault(), "%.2f", measurement.mGlucose));
-				id.setText(String.format("ID: %s", measurement.mId));
+			if(measurement.getMErrorID()==0) {
+				value.setText(String.format(Locale.getDefault(), "%.2f", measurement.getMGlucose()));
+				id.setText(String.format("ID: %s", measurement.getMId()));
 			}
-			else if(measurement.mErrorID==1280) {
-				value.setText(String.format(Locale.getDefault(), "%.2f", measurement.mGlucose));
-				id.setText(String.format("ID: %s HI", measurement.mId));
+			else if(measurement.getMErrorID()==1280) {
+				value.setText(String.format(Locale.getDefault(), "%.2f", measurement.getMGlucose()));
+				id.setText(String.format("ID: %s HI", measurement.getMId()));
 			}
 			else{
 				value.setText("-");
-				id.setText(String.format("ID: %s ERROR CODE: %d", measurement.mId,measurement.mErrorID));
+				id.setText(String.format("ID: %s ERROR CODE: %d", measurement.getMId(),measurement.getMErrorID()));
 			}
 
 			return view;

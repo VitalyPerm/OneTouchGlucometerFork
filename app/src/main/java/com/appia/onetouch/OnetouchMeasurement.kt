@@ -1,12 +1,35 @@
-package com.appia.onetouch;
+package com.appia.onetouch
 
-import androidx.annotation.NonNull;
+import java.util.*
 
-import java.text.DateFormat;
-import java.util.Calendar;
-import java.util.Date;
+class OnetouchMeasurement {
+    constructor() {}
+    constructor(aGlucose: Float, aDate: Date?, aId: String?, aErrorID: Int) {
+        mGlucose = aGlucose
+        mDate = aDate
+        mId = aId
+        mErrorID = aErrorID
+    }
 
+    constructor(aGlucose: Float, aDate: Date?, aId: String?) {
+        mGlucose = aGlucose
+        mDate = aDate
+        mId = aId
+        mErrorID = 0
+    }
 
+    /** The glucose concentration  */
+    var mGlucose = 0f
+
+    /** The base time of the measurement  */
+    var mDate: Date? = null
+    var mId: String? = null
+    var mErrorID = 0
+    override fun toString(): String {
+        return mGlucose.toString() + " mmol/L @ " + mDate.toString() + " Error: " + mErrorID
+    }
+}
+/*
 public class OnetouchMeasurement {
     public OnetouchMeasurement(){
 
@@ -39,3 +62,4 @@ public class OnetouchMeasurement {
         return mGlucose + " mmol/L @ " + mDate.toString() + " Error: " + mErrorID;
     }
 }
+ */
