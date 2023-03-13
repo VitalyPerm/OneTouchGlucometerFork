@@ -21,9 +21,8 @@ import com.appia.bioland.R
 import com.appia.main.OnetouchActivity
 import no.nordicsemi.android.ble.BleManager
 
-// TODO
+
 class OnetouchService : BleProfileService(), OnetouchCallbacks {
-    /* Onetouch manager. */
     private var mManager: OnetouchManager? = null
     var mMeasurements = ArrayList<OnetouchMeasurement?>()
     private var deviceInfo: OnetouchInfo? = null
@@ -33,9 +32,7 @@ class OnetouchService : BleProfileService(), OnetouchCallbacks {
 
 
         val dInfo get() = deviceInfo
-        /**
-         * Returns the measurements stored in the manager.
-         */
+
         val measurements: ArrayList<OnetouchMeasurement?>
             get() {
                 val ret = ArrayList(mMeasurements)
@@ -43,9 +40,6 @@ class OnetouchService : BleProfileService(), OnetouchCallbacks {
                 return ret
             }
 
-        /**
-         * Send a request to read new measurements
-         */
         fun requestMeasurements() {
             if (isConnected) {
                 mManager!!.requestMeasurements()
@@ -100,10 +94,6 @@ class OnetouchService : BleProfileService(), OnetouchCallbacks {
         val broadcast = Intent(BROADCAST_COMM_FAILED)
         broadcast.putExtra(EXTRA_ERROR_MSG, aMessage)
         LocalBroadcastManager.getInstance(this).sendBroadcast(broadcast)
-    }
-
-    override fun getBinder(): LocalBinder {
-        return mBinder
     }
 
     override fun initializeManager(): BleManager<OnetouchCallbacks> {
@@ -184,7 +174,7 @@ class OnetouchService : BleProfileService(), OnetouchCallbacks {
         if (device != null && !isConnected) {
             /* If it was previously connected, reconnect! */
             Log.d(TAG, "Reconnecting...")
-            mManager!!.connect(bluetoothDevice).enqueue()
+            mManager!!.connect(bluetoothDevice!!).enqueue()
         }
     }
 
@@ -248,7 +238,7 @@ class OnetouchService : BleProfileService(), OnetouchCallbacks {
 
     private fun wakeUpScreen() {
         val pm = this.getSystemService(POWER_SERVICE) as PowerManager
-        if (pm != null && !pm.isInteractive) {
+        if (!pm.isInteractive) {
             val wl = pm.newWakeLock(
                 PowerManager.FULL_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
                 "OnetouchAPP:" + TAG
@@ -259,13 +249,13 @@ class OnetouchService : BleProfileService(), OnetouchCallbacks {
         }
     }
 
-    protected fun updateNotification(messageResId: Int, aVibrate: Boolean, aSound: Boolean) {
+    fun updateNotification(messageResId: Int, aVibrate: Boolean, aSound: Boolean) {
         val notification = createNotification(messageResId, aVibrate, aSound)
         val mNotificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         mNotificationManager.notify(NOTIFICATION_ID, notification)
     }
 
-    protected fun updateNotification(messageResId: Int) {
+    fun updateNotification(messageResId: Int) {
         val notification = createNotification(messageResId, false, false)
         val mNotificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         mNotificationManager.notify(NOTIFICATION_ID, notification)
@@ -339,20 +329,10 @@ class OnetouchService : BleProfileService(), OnetouchCallbacks {
     private val disconnectActionBroadcastReceiver: BroadcastReceiver =
         object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                if (isConnected) binder.disconnect() else stopSelf()
+                if (isConnected) binder!!.disconnect() else stopSelf()
             }
         }
 
-    /**
-     * Quizas no hace falta recibir broadcasts!!!
-     * TODO
-     */
-    //    private BroadcastReceiver intentBroadcastReceiver = new BroadcastReceiver() {
-    //        @Override
-    //        public void onReceive(final Context context, final Intent intent) {
-    //
-    //        }
-    //    };
     companion object {
         private const val TAG = "OnetouchService"
 

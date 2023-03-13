@@ -9,43 +9,43 @@ import java.nio.ByteOrder
 import java.util.*
 
 class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCallbacks {
-    private val TAG = "OneTouchProtocol"
+    private val tag = "OneTouchProtocol"
 
     // Abstracts serial communication
     private var protocolCallbacks: ProtocolCallbacks? = aCallbacks
 
-    private val PACKET_INITIAL_BYTE = 1 // Always 0x02
+    private val packetInitialByte = 1 // Always 0x02
 
-    private val PACKET_LENGTH_BYTES = 2 // 16 bit packet length (little endian)
+    private val packetLengthBytes = 2 // 16 bit packet length (little endian)
 
-    private val PACKET_PAYLOAD_BEGIN_BYTE_A = 1 // Always 0x04 before payload
+    private val packetPayloadBeginByteA = 1 // Always 0x04 before payload
 
-    private val PACKET_PAYLOAD_BEGIN_BYTE_B = 1 // Always 0x06 before payload when receiving
+    private val packetPayloadBeginByteB = 1 // Always 0x06 before payload when receiving
 
-    private val PACKET_PAYLOAD_END_BYTE = 1 // Always 0x03 after payload
+    private val packetPayloadEndByte = 1 // Always 0x03 after payload
 
-    private val PACKET_CRC_BYTES = 2 // 16 bit checksum (little endian)
+    private val packetCRCByte = 2 // 16 bit checksum (little endian)
 
 
-    private val PACKET_PAYLOAD_BEGIN = PACKET_INITIAL_BYTE +
-            PACKET_LENGTH_BYTES +
-            PACKET_PAYLOAD_BEGIN_BYTE_A +
-            PACKET_PAYLOAD_BEGIN_BYTE_B
+    private val packetPayloadBegin = packetInitialByte +
+            packetLengthBytes +
+            packetPayloadBeginByteA +
+            packetPayloadBeginByteB
 
-    private val PROTOCOL_OVERHEAD = PACKET_INITIAL_BYTE +
-            PACKET_LENGTH_BYTES +
-            PACKET_PAYLOAD_BEGIN_BYTE_A +
-            PACKET_PAYLOAD_BEGIN_BYTE_B +
-            PACKET_PAYLOAD_END_BYTE +
-            PACKET_CRC_BYTES
+    private val protocolOverHead = packetInitialByte +
+            packetLengthBytes +
+            packetPayloadBeginByteA +
+            packetPayloadBeginByteB +
+            packetPayloadEndByte +
+            packetCRCByte
 
-    private val PROTOCOL_SENDING_OVERHEAD = PACKET_INITIAL_BYTE +
-            PACKET_LENGTH_BYTES +
-            PACKET_PAYLOAD_BEGIN_BYTE_A +
-            PACKET_PAYLOAD_END_BYTE +
-            PACKET_CRC_BYTES
+    private val protocolSendingOverhead = packetInitialByte +
+            packetLengthBytes +
+            packetPayloadBeginByteA +
+            packetPayloadEndByte +
+            packetCRCByte
 
-    private val DEVICE_TIME_OFFSET = 946684799 // Year 2000 UNIX time
+    private val deviceTimeOffset = 946684799 // Year 2000 UNIX time
 
 
     private var mHighestMeasIndex: Short = 0
@@ -53,28 +53,27 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
     private var mHighestStoredMeasID: Short = 0
     private var mSynced = false
 
-    var mMeasurements = ArrayList<OnetouchMeasurement?>()
+    private var mMeasurements = ArrayList<OnetouchMeasurement?>()
 
     enum class State {
-        IDLE, WAITING_TIME, WAITING_HIGHEST_ID, WAITING_OLDEST_INDEX, WAITING_MEASUREMENT, WAITING_LOW_LIMIT_SET, WAITING_LOW_LIMIT_GET, WAITING_HIGH_LIMIT_SET, WAITING_HIGH_LIMIT_GET
+        IDLE,
+        WAITING_TIME,
+        WAITING_HIGHEST_ID,
+        WAITING_OLDEST_INDEX,
+        WAITING_MEASUREMENT
     }
 
     private var mBleUart: Bleuart? = null
     private var mState: State? = null
     private var timer: Timer? = null
 
-
-    fun getStoredMeasurements() {
-        getOldestRecordIndex()
-    }
-
     // packing an array of 4 bytes to an int, little endian, clean code
-    fun intFromByteArray(bytes: ByteArray?): Int {
-        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).int
+    private fun intFromByteArray(bytes: ByteArray?): Int {
+        return ByteBuffer.wrap(bytes!!).order(ByteOrder.LITTLE_ENDIAN).int
     }
 
-    fun shortFromByteArray(bytes: ByteArray?): Short {
-        return ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).short
+    private fun shortFromByteArray(bytes: ByteArray?): Short {
+        return ByteBuffer.wrap(bytes!!).order(ByteOrder.LITTLE_ENDIAN).short
     }
 
     /**
@@ -89,48 +88,49 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
     override fun onPacketReceived(aBytes: ByteArray?) {
         try {
             val payload = extractPayload(aBytes!!)
-            Log.d(TAG, "Packet received: " + bytesToHex(payload))
+            Log.d(tag, "Packet received: " + bytesToHex(payload))
             when (mState) {
-                State.WAITING_TIME -> if (payload.size == 4) { // Time get response
-                    handleTimeGet(computeUnixTime(payload).toLong())
-                } else if (payload.size == 0) { // Time set response (empty)
-                    handleTimeSet()
-                } else {
-                    Log.e(TAG, "Unexpected payload waiting for time request!")
+                State.WAITING_TIME -> when (payload.size) {
+                    4 -> { // Time get response
+                        handleTimeGet(computeUnixTime(payload).toLong())
+                    }
+                    0 -> { // Time set response (empty)
+                        handleTimeSet()
+                    }
+                    else -> {
+                        Log.e(tag, "Unexpected payload waiting for time request!")
+                    }
                 }
                 State.WAITING_HIGHEST_ID -> if (payload.size == 4) {
                     val highestID = intFromByteArray(payload)
                     handleHighestRecordID(highestID.toShort())
                 } else {
-                    Log.e(TAG, "Unexpected payload waiting for highest record ID!")
+                    Log.e(tag, "Unexpected payload waiting for highest record ID!")
                 }
                 State.WAITING_OLDEST_INDEX -> if (payload.size == 2) {
                     val recordCount = shortFromByteArray(payload)
                     handleTotalRecordCount(recordCount)
                 } else {
-                    Log.e(TAG, "Unexpected payload waiting for total record request!")
+                    Log.e(tag, "Unexpected payload waiting for total record request!")
                 }
                 State.WAITING_MEASUREMENT -> if (payload.size == 11) {
-                    val measTime = computeUnixTime(Arrays.copyOfRange(payload, 0, 0 + 4))
-                    val measValue = shortFromByteArray(Arrays.copyOfRange(payload, 4, 4 + 2))
-                    val measError = shortFromByteArray(Arrays.copyOfRange(payload, 9, 9 + 2))
+                    val measTime = computeUnixTime(payload.copyOfRange(0, 0 + 4))
+                    val measValue = shortFromByteArray(payload.copyOfRange(4, 4 + 2))
+                    val measError = shortFromByteArray(payload.copyOfRange(9, 9 + 2))
                     handleMeasurementByID(measTime, measValue, measError)
-                } else if (payload.size == 0) {
+                } else if (payload.isEmpty()) {
                     // Measurement was not found! Indicate with aMeasTime=0
                     handleMeasurementByID(0, 0.toShort(), 0.toShort())
                 } else if (payload.size == 16) {
-                    val measIndex = shortFromByteArray(Arrays.copyOfRange(payload, 0, 0 + 2))
-                    val measID = shortFromByteArray(Arrays.copyOfRange(payload, 3, 3 + 2))
-                    val measTime = computeUnixTime(Arrays.copyOfRange(payload, 5, 5 + 4))
-                    val measValue = shortFromByteArray(Arrays.copyOfRange(payload, 9, 9 + 2))
-                    val measUnknownValue =
-                        shortFromByteArray(Arrays.copyOfRange(payload, 13, 13 + 2))
+                    val measIndex = shortFromByteArray(payload.copyOfRange(0, 0 + 2))
+                    val measID = shortFromByteArray(payload.copyOfRange(3, 3 + 2))
+                    val measTime = computeUnixTime(payload.copyOfRange(5, 5 + 4))
+                    val measValue = shortFromByteArray(payload.copyOfRange(9, 9 + 2))
                     handleMeasurementByIndex(
                         measIndex,
                         measID,
                         measTime,
-                        measValue,
-                        measUnknownValue
+                        measValue
                     )
                 }
                 else -> {}
@@ -168,11 +168,11 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
     }
 
     fun getTime() {
-        mBleUart!!.sendPacket(buildPacket(byteArrayOf(0x20, 0x02))!!)
+        mBleUart!!.sendPacket(buildPacket(byteArrayOf(0x20, 0x02)))
         mState = State.WAITING_TIME
     }
 
-    fun setTime() {
+    private fun setTime() {
         val currTime = computeSystemTime().toLong()
         mBleUart!!.sendPacket(
             buildPacket(
@@ -184,78 +184,36 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
                     (currTime and 0x00FF0000L shr 16).toByte(),
                     (currTime and 0xFF000000L shr 24).toByte()
                 )
-            )!!
+            )
         )
         mState = State.WAITING_TIME
     }
 
-    fun getHighLimit() {
-        mBleUart!!.sendPacket(buildPacket(byteArrayOf(0x0A, 0x02, 0x0A))!!)
-        mState = State.WAITING_HIGH_LIMIT_GET
-    }
 
-    fun setHighLimit(high: Short) {
-        mBleUart!!.sendPacket(
-            buildPacket(
-                byteArrayOf(
-                    0x0A,
-                    0x01,
-                    0x0A,
-                    (high.toInt() and 0x00FF).toByte(),
-                    (high.toInt() and 0xFF00 shr 8).toByte(),
-                    0x00,
-                    0x00
-                )
-            )!!
-        )
-        mState = State.WAITING_HIGH_LIMIT_SET
-    }
 
-    fun getLowLimit() {
-        mBleUart!!.sendPacket(buildPacket(byteArrayOf(0x0A, 0x02, 0x09))!!)
-        mState = State.WAITING_LOW_LIMIT_GET
-    }
-
-    fun setLowLimit(low: Short) {
-        mBleUart!!.sendPacket(
-            buildPacket(
-                byteArrayOf(
-                    0x0A,
-                    0x01,
-                    0x09,
-                    (low.toInt() and 0x00FF).toByte(),
-                    (low.toInt() and 0xFF00 shr 8).toByte(),
-                    0x00,
-                    0x00
-                )
-            )!!
-        )
-        mState = State.WAITING_LOW_LIMIT_SET
-    }
-
-    fun getHighestRecordID() {
-        mBleUart!!.sendPacket(buildPacket(byteArrayOf(0x0A, 0x02, 0x06))!!)
+    private fun getHighestRecordID() {
+        mBleUart!!.sendPacket(buildPacket(byteArrayOf(0x0A, 0x02, 0x06)))
         mState = State.WAITING_HIGHEST_ID
     }
 
-    fun getOldestRecordIndex() {
-        mBleUart!!.sendPacket(buildPacket(byteArrayOf(0x27, 0x00))!!)
+    private fun getOldestRecordIndex() {
+        mBleUart!!.sendPacket(buildPacket(byteArrayOf(0x27, 0x00)))
         mState = State.WAITING_OLDEST_INDEX
     }
 
-    fun getMeasurementsByIndex(index: Int) {
+    private fun getMeasurementsByIndex(index: Int) {
         mBleUart!!.sendPacket(
             buildPacket(
                 byteArrayOf(
                     0x31, 0x02, (index and 0x00FF).toByte(), (index and 0xFF00 shr 8).toByte(),
                     0x00
                 )
-            )!!
+            )
         )
         mState = State.WAITING_MEASUREMENT
     }
 
-    fun getMeasurementsById(id: Int) {
+    private fun getMeasurementsById(id: Int) {
         mBleUart!!.sendPacket(
             buildPacket(
                 byteArrayOf(
@@ -263,19 +221,19 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
                     (id and 0x00FF).toByte(),
                     (id and 0xFF00 shr 8).toByte()
                 )
-            )!!
+            )
         )
         mState = State.WAITING_MEASUREMENT
     }
 
     private fun handleTimeGet(aSeconds: Long) {
-        Log.d(TAG, "Glucometer time is: " + Date(1000 * aSeconds).toString())
-        Log.d(TAG, "System time is: " + Date(System.currentTimeMillis()).toString())
+        Log.d(tag, "Glucometer time is: " + Date(1000 * aSeconds).toString())
+        Log.d(tag, "System time is: " + Date(System.currentTimeMillis()).toString())
         setTime()
     }
 
     private fun handleTimeSet() {
-        Log.d(TAG, "Time has been set!")
+        Log.d(tag, "Time has been set!")
         if (!mSynced) {
             getOldestRecordIndex()
         } else {
@@ -284,21 +242,21 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
     }
 
     private fun handleTotalRecordCount(aRecordCount: Short) {
-        Log.d(TAG, "Total records stored on Glucometer: $aRecordCount")
+        Log.d(tag, "Total records stored on Glucometer: $aRecordCount")
         mHighestMeasIndex = aRecordCount
         // After getting the number of stored measurements, start from the oldest one!
         getMeasurementsByIndex(aRecordCount - 1)
     }
 
     private fun handleHighestRecordID(aRecordID: Short) {
-        Log.d(TAG, "Highest record ID: $aRecordID")
+        Log.d(tag, "Highest record ID: $aRecordID")
         if (aRecordID > mHighestMeasID) {
             mHighestStoredMeasID = mHighestMeasID
             mHighestMeasID = aRecordID
-            Log.d(TAG, "There are " + (mHighestMeasID - mHighestStoredMeasID) + " new records!")
+            Log.d(tag, "There are " + (mHighestMeasID - mHighestStoredMeasID) + " new records!")
             getMeasurementsById(mHighestStoredMeasID + 1)
         } else {
-            Log.d(TAG, "Measurements are up to date!")
+            Log.d(tag, "Measurements are up to date!")
             // Enqueue timer to poll new measurements?
         }
     }
@@ -308,7 +266,7 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
         mHighestStoredMeasID++
         if (aMeasTime != 0) { // If measurement was found..
             Log.d(
-                TAG, "Measurement - Value: " + aMeasValue +
+                tag, "Measurement - Value: " + aMeasValue +
                         " Time: " + Date(1000 * aMeasTime.toLong()).toString() +
                         " Error: " + aMeasError
             )
@@ -317,18 +275,18 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
                 OnetouchMeasurement(
                     aMeasValue.toFloat(),
                     date,
-                    Integer.toString(mHighestStoredMeasID.toInt()),
+                    mHighestStoredMeasID.toInt().toString(),
                     aMeasError.toInt()
                 )
             )
         } else {
-            Log.d(TAG, "Measurement with ID: $mHighestStoredMeasID was not found!")
+            Log.d(tag, "Measurement with ID: $mHighestStoredMeasID was not found!")
         }
         if (mHighestStoredMeasID < mHighestMeasID) {
-            Log.d(TAG, "Requesting next measurement, ID: " + (mHighestStoredMeasID + 1))
+            Log.d(tag, "Requesting next measurement, ID: " + (mHighestStoredMeasID + 1))
             getMeasurementsById(mHighestStoredMeasID + 1)
         } else {
-            Log.d(TAG, "Measurement up to date!")
+            Log.d(tag, "Measurement up to date!")
             // Notify application
             protocolCallbacks!!.onMeasurementsReceived(mMeasurements)
             mMeasurements.clear()
@@ -340,25 +298,24 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
         aMeasIndex: Short,
         aMeasID: Short,
         aMeasTime: Int,
-        aMeasValue: Short,
-        aMeasUnknownValue: Short
+        aMeasValue: Short
     ) {
         Log.d(
-            TAG, "Measurement " + aMeasIndex + " |" +
+            tag, "Measurement " + aMeasIndex + " |" +
                     " Value: " + aMeasValue +
                     " Time: " + Date(1000 * aMeasTime.toLong()).toString() +
                     " ID:" + aMeasID
         )
 
         // Update latest ID
-        mHighestMeasID = Math.max(aMeasID.toInt(), mHighestMeasID.toInt()).toShort()
+        mHighestMeasID = aMeasID.toInt().coerceAtLeast(mHighestMeasID.toInt()).toShort()
         mHighestStoredMeasID = mHighestMeasID
         val date = Date(1000 * aMeasTime.toLong())
         mMeasurements.add(
             OnetouchMeasurement(
                 aMeasValue.toFloat(),
                 date,
-                Integer.toString(aMeasID.toInt())
+                aMeasID.toInt().toString()
             )
         )
         if (aMeasIndex.toInt() == 0) { // The latest measurement
@@ -369,21 +326,21 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
             getHighestRecordID()
             // Start timer to poll for new measurements??
         } else {
-            Log.d(TAG, "Requesting next measurement: " + (aMeasIndex - 1))
+            Log.d(tag, "Requesting next measurement: " + (aMeasIndex - 1))
             getMeasurementsByIndex(aMeasIndex - 1)
         }
     }
 
-    private fun buildPacket(payload: ByteArray): ByteArray? {
-        val N = payload.size
-        val packetLength = PROTOCOL_SENDING_OVERHEAD + N
+    private fun buildPacket(payload: ByteArray): ByteArray {
+        val payloadSize = payload.size
+        val packetLength = protocolSendingOverhead + payloadSize
         val packet = ByteArray(packetLength)
         packet[0] = 0x02.toByte()
         packet[1] = packetLength.toByte()
         packet[2] = 0x00.toByte()
         packet[3] = 0x04.toByte()
-        System.arraycopy(payload, 0, packet, 4, N)
-        packet[4 + N] = 0x03.toByte()
+        System.arraycopy(payload, 0, packet, 4, payloadSize)
+        packet[4 + payloadSize] = 0x03.toByte()
         appendCRC16(packet, packetLength - 2)
         return packet
     }
@@ -391,11 +348,10 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
     @Throws(Exception::class)
     private fun extractPayload(packet: ByteArray): ByteArray {
         if (checkCRC16(packet)) {
-            return if (packet.size == extractLength(packet) && packet.size >= PROTOCOL_OVERHEAD) {
-                Arrays.copyOfRange(
-                    packet,
-                    PACKET_PAYLOAD_BEGIN,
-                    PACKET_PAYLOAD_BEGIN + packet.size - PROTOCOL_OVERHEAD
+            return if (packet.size == extractLength(packet) && packet.size >= protocolOverHead) {
+                packet.copyOfRange(
+                    packetPayloadBegin,
+                    packetPayloadBegin + packet.size - protocolOverHead
                 )
             } else {
                 throw Exception(
@@ -415,14 +371,14 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
     }
 
     private fun computeUnixTime(sysTime: ByteArray): Int {
-        return DEVICE_TIME_OFFSET + intFromByteArray(sysTime)
+        return deviceTimeOffset + intFromByteArray(sysTime)
     }
 
     private fun computeSystemTime(): Int {
-        return (System.currentTimeMillis() / 1000).toInt() - DEVICE_TIME_OFFSET
+        return (System.currentTimeMillis() / 1000).toInt() - deviceTimeOffset
     }
 
-    fun computeCRC(data: ByteArray?, offset: Int, length: Int): Int {
+    private fun computeCRC(data: ByteArray?, offset: Int, length: Int): Int {
         if ((data == null) || (offset < 0) || (offset > data.size - 1) || (offset + length > data.size)) {
             return 0
         }
@@ -444,7 +400,7 @@ class Protocol(aCallbacks: ProtocolCallbacks?, aMaxPacketSize: Int) : BleuartCal
         return (((data[2].toInt() shl 8) and 0xFF00) or (data[1].toInt() and 0x00FF))
     }
 
-    fun appendCRC16(data: ByteArray, length: Int) {
+    private fun appendCRC16(data: ByteArray, length: Int) {
         val crc = computeCRC(data, 0, length)
         data[length] = ((crc and 0x00FF)).toByte()
         data[length + 1] = ((crc and 0xFF00) shr 8).toByte()
