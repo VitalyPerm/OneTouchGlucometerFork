@@ -26,7 +26,7 @@ abstract class BleProfileService : Service(), BleManagerCallbacks {
      * Returns a handler that is created in onCreate().
      * The handler may be used to postpone execution of some operations or to run them in UI thread.
      */
-    protected var handler: Handler? = null
+    private var handler: Handler? = null
         private set
     protected var bound = false
     private var activityIsChangingConfiguration = false
@@ -230,7 +230,7 @@ abstract class BleProfileService : Service(), BleManagerCallbacks {
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-        if (intent == null || !intent.hasExtra(EXTRA_DEVICE_ADDRESS)) throw UnsupportedOperationException(
+        if (!intent.hasExtra(EXTRA_DEVICE_ADDRESS)) throw UnsupportedOperationException(
             "No device address at EXTRA_DEVICE_ADDRESS key"
         )
         val logUri = intent.getParcelableExtra<Uri>(EXTRA_LOG_URI)

@@ -60,10 +60,8 @@ class OnetouchManager(context: Context) : BleManager<OnetouchCallbacks>(context)
                         )
                     }
                     .enqueue()
-
-                /* Register callback to get data from the device. */setNotificationCallback(
-                    mTxCharacteristic
-                )
+/* Register callback to get data from the device. */
+                setNotificationCallback(mTxCharacteristic)
                     .with { device: BluetoothDevice?, data: Data ->
                         Log.v(
                             TAG,
