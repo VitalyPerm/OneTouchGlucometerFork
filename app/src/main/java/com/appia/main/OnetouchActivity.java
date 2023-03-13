@@ -177,7 +177,7 @@ public class OnetouchActivity extends BleProfileServiceReadyActivity<OnetouchSer
 		// TODO: Show device information
 		runOnUiThread(() -> {
 					if(mBinder!=null) {
-						OnetouchInfo info = mBinder.getDeviceInfo();
+						OnetouchInfo info = mBinder.getDInfo();
 						Log.d(TAG,"Device information receivec: " + info.getBatteryCapacity() + "% battery left");
 						batteryLevelView.setText(info.getBatteryCapacity() +"%");
 					}
